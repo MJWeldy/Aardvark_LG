@@ -18,13 +18,21 @@ pca_kruger<-dudi.pca(for_pca_mode[which(df$Region!="NA"),],
                      scann = FALSE, nf = 30)
 PCA_DUDI_mode<-pca_kruger$li
 a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:30], method = "euclidean"))
+
+#clustered mode
+pca_kruger<-dudi.pca(df_clustered_mode[which(df$Region!="NA"),7:ncol(df_clustered_mode)],
+                     center = TRUE, scale = FALSE, 
+                     scann = FALSE, nf = 30)
+PCA_DUDI_mode<-pca_kruger$li
+a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:30], method = "euclidean"))
+
 #Autoencoder
 z <- as.matrix(dist(intermediate_output[which(df$Region!="NA"),], method = "euclidean"))
 
 
 #Estimating the euclidean distances between individuals
-XY <- distm(cbind(df[which(df$Region!="NA"),5],df[which(df$Region!="NA"),4]),
-            cbind(df[which(df$Region!="NA"),5],df[which(df$Region!="NA"),4]), 
+XY <- distm(cbind(df[which(df$Region!="NA"),6],df[which(df$Region!="NA"),5]),
+            cbind(df[which(df$Region!="NA"),6],df[which(df$Region!="NA"),5]), 
             fun = distGeo)/1000
 #XY<-as.matrix(dist(df[which(df$Region!="NA"),4:5], method = "euclidean"))
 
@@ -44,7 +52,7 @@ colnames(me) <- NULL
 
 lmm_df <- data.frame(y_mean = lower(a_mean),
                      y_mode = lower(a_mode),
-                     y_AE = lower(z),
+                     #y_AE = lower(z),
                      dist = lower(XY),
                      z_dist = scale(lower(XY), center = FALSE, scale = TRUE),
                      GLM = lower(glm),
@@ -88,7 +96,10 @@ names<-rbind('null','dist','GLM','ME')
 
 (AIC<-aictab(Cand.models_mean, sort = TRUE,
             second.ord = FALSE, modnames=names))
+#write.csv(AIC, "./figures/KNP_AIC_set_mean.csv")
 (AIC<-aictab(Cand.models_mode, sort = TRUE,
              second.ord = FALSE, modnames=names))
+#write.csv(AIC, "./figures/KNP_AIC_set_mode.csv")
 (AIC<-aictab(Cand.models_AE, sort = TRUE,
              second.ord = FALSE, modnames=names))
+#write.csv(AIC, "./figures/KNP_AIC_set_AE.csv")

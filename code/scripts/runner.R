@@ -3,7 +3,7 @@ library(tidyverse)
 library(raster)
 library(sf)
 
-source("code/scripts/001_load_data.R")          #Done
+source("code/scripts/001_load_data_v2.R")          #Done
 source("code/scripts/002_transform_data.R")          #Done
 #source("code/scripts/002_PCA.R")            #Done
 #source("code/scripts/003_Keras_encoder.R")          #Done

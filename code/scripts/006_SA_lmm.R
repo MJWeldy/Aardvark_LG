@@ -4,7 +4,7 @@ library(AICcmodavg)
 library(MuMIn)
 library(ade4)
 library(broom.mixed)
-
+library(geosphere)
 #mean
 pca_sa<-dudi.pca(for_pca_mean,
                      center = TRUE, scale = FALSE, 
@@ -17,6 +17,13 @@ pca_sa<-dudi.pca(for_pca_mode,
                      scann = FALSE, nf = 30)
 PCA_DUDI_mode<-pca_sa$li
 a_mode <- as.matrix(dist(PCA_DUDI_mode, method = "euclidean"))
+#clustered mode
+pca_sa<-dudi.pca(df_clustered_mode[,7:ncol(df_clustered_mode)],
+                     center = TRUE, scale = FALSE, 
+                     scann = FALSE, nf = 30)
+PCA_DUDI_mode<-pca_sa$li
+a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:30], method = "euclidean"))
+
 #Autoencoder
 z <- as.matrix(dist(intermediate_output, method = "euclidean"))
 
@@ -31,9 +38,9 @@ z <- as.matrix(dist(intermediate_output, method = "euclidean"))
 #XY<-read.csv("./data/raw/SPATIAL_DATA.csv") #Euclidean Distances of Individuals
 #XY<-as.matrix(dist(df[5:nrow(df),4:5], method = "euclidean"))
 #XY<-as.matrix(distance(df[5:nrow(df),4:5], method = "euclidean"))
-library(geosphere)
-XY <- distm(cbind(df[,5],df[,4]),
-            cbind(df[,5],df[,4]), fun = distGeo)/1000
+
+XY <- distm(cbind(df[,6],df[,5]),
+            cbind(df[,6],df[,5]), fun = distGeo)/1000
 
 SA_df <- read.delim("./data/clean/SA_VRM/SA_VRM_resistances_3columns.out", 
                     sep =" ", header=FALSE)
@@ -75,12 +82,12 @@ SA_df$delta_MAP <- delta_cov(SA_MAP, SA_points, SA_df$ID1, SA_df$ID2)
 
 z_SA_df <- SA_df
 #z_SA_df[,3:ncol(z_SA_df)] <- scale(z_SA_df[,3:ncol(z_SA_df)] ,center = TRUE, scale = TRUE)
-z_SA_df[,3:ncol(z_SA_df)] <- apply(z_SA_df[3:ncol(z_SA_df)], 2,scale, center = FALSE, scale = TRUE)
+z_SA_df[,4:ncol(z_SA_df)] <- apply(z_SA_df[4:ncol(z_SA_df)], 2,scale, center = FALSE, scale = TRUE)
 library(corrplot)
 M = cor(SA_df[,3:5])
 corrplot(M, method = 'number')
 
-M = cor(SA_df[,6:ncol(SA_df)])
+M = cor(SA_df[,4:ncol(SA_df)])
 corrplot(M, method = 'number')
 
 fit_models <- function(genetic_distance, covs, distance, relation, set, return_list){
@@ -163,8 +170,8 @@ fit_models <- function(genetic_distance, covs, distance, relation, set, return_l
 }
 set.seed(1234)
 SA_mean_AIC <- fit_models(lower(a_mean), z_SA_df, 0, "greater than", "multivariate", TRUE)
-SA_mode_AIC <- fit_models(lower(a_mode), SA_df, 0, "greater than", "multivariate", TRUE)
-SA_z_AIC <- fit_models(lower(z), SA_df, 0, "greater than", "multivariate", TRUE)
+SA_mode_AIC <- fit_models(lower(a_mode), z_SA_df, 0, "greater than", "multivariate", TRUE)
+SA_z_AIC <- fit_models(lower(z), z_SA_df, 0, "greater than", "multivariate", TRUE)
 write.csv(SA_mean_AIC[[1]], "./figures/SA_AIC_set_mean.csv")
 write.csv(SA_mode_AIC[[1]], "./figures/SA_AIC_set_mode.csv")
 write.csv(SA_z_AIC[[1]], "./figures/SA_AIC_set_z.csv")
@@ -177,3 +184,21 @@ for(i in 1:length(models)){
 }
 all_betas <- do.call("rbind", betas)
 write.csv(all_betas, "./figures/all_betas.csv")
+
+models <- c(9 ,19, 20, 6, 18, 8, 15, 11, 14, 2)
+betas <- list()
+for(i in 1:length(models)){
+  tmp <- tidy(SA_mode_AIC[[2]][[models[i]]],effects="fixed", conf.int=TRUE, conf.method="profile")
+  betas[[i]] <- data.frame(term = tmp$term, mean = tmp$estimate, ci_low = tmp$conf.low, ci_high = tmp$conf.high)
+}
+all_betas <- do.call("rbind", betas)
+write.csv(all_betas, "./figures/all_betas_mode.csv")
+
+models(18, 20, 19, 14, 6, 15, 17, 2)
+betas <- list()
+for(i in 1:length(models)){
+  tmp <- tidy(SA_z_AIC[[2]][[models[i]]],effects="fixed", conf.int=TRUE, conf.method="profile")
+  betas[[i]] <- data.frame(term = tmp$term, mean = tmp$estimate, ci_low = tmp$conf.low, ci_high = tmp$conf.high)
+}
+all_betas <- do.call("rbind", betas)
+write.csv(all_betas, "./figures/all_betas_z.csv")

@@ -4,7 +4,7 @@ breaks <- c(1600, 1300, 1200, 1100, 1000, 900, 800, 700, 600, 500, 400, 300,
             200, 150, 100, 90, 80, 70, 60, 50, 40, 30, 20)
 results <- list()
 for(i in 1:length(breaks)){
-  tmp_AIC <- fit_models(lower(a_mean), SA_df, breaks[i], "less than", "univariate")
+  tmp_AIC <- fit_models(lower(a_mode), z_SA_df, breaks[i], "less than", "univariate", FALSE)
   results[[i]] <- data.frame(n = nrow(SA_df[which(SA_df$dist<=breaks[i]),]),
                              dist = breaks[i], 
                              covs = tmp_AIC$Modnames,
