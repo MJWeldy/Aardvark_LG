@@ -14,16 +14,15 @@ df <- df[-c(1:4),]
 
 NA_filter_row <- rep(TRUE, nrow(df))
 for(i in 1:nrow(df)){
-  NA_filter_row[i] <- ifelse(sum(is.na(df[i,7:ncol(df)]))/length(df[i,7:ncol(df)]) > 0.20 , FALSE, TRUE)
+  NA_filter_row[i] <- ifelse(sum(is.na(df[i,7:ncol(df)]))/length(df[i,7:ncol(df)]) >= 0.20 , FALSE, TRUE)
 }
 test <- data.frame(df$Population, NA_filter_row) %>% group_by(df.Population) %>% summarise(count = sum(NA_filter_row))
-
 filter_set <- seq(1:nrow(df))[NA_filter_row]
-
-NA_filter_col <- rep(TRUE, ncol(df))
-for(i in 7:ncol(df)){
-  NA_filter[i] <- ifelse(sum(is.na(df[,i]))/nrow(df[,i]) > 0.1 , FALSE, TRUE)
-}
+# 
+# NA_filter_col <- rep(TRUE, ncol(df))
+# for(i in 7:ncol(df)){
+#   NA_filter_col[i] <- ifelse(sum(is.na(df[,i]))/nrow(df[,i]) >= 0.2 , FALSE, TRUE)
+# }
 
   
 sp_points <- st_as_sf(df[,1:6], coords = c("Longitude", "Latitude"), 
@@ -32,7 +31,7 @@ sp_points$id <- seq(1:nrow(sp_points))
 
 
 #Prep PCA datasets
-for_pca_mean <- df[,7:ncol(df)] %>% 
+for_pca_mean <- df[NA_filter_row,7:ncol(df)] %>% 
   mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
 
 getmode <- function(v) {
@@ -41,10 +40,10 @@ getmode <- function(v) {
   uniqv[which.max(tabulate(match(v, uniqv)))]
 }
 
-for_pca_mode <- df[,7:ncol(df)] %>% 
-  mutate_all(~ifelse(is.na(.x), getmode(.x), .x))
+# for_pca_mode <- df[NA_filter_row,7:ncol(df)] %>% 
+#   mutate_all(~ifelse(is.na(.x), getmode(.x), .x))
 
-df_clustered_mode <- df %>% 
+df_clustered_mode <- df[NA_filter_row,] %>% 
   group_by(CombinedPop) %>% 
   mutate_all(~ifelse(is.na(.x), getmode(.x),.x)) %>% 
   ungroup() 

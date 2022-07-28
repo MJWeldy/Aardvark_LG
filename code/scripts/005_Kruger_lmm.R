@@ -6,28 +6,37 @@ library(ade4)
 library(lme4)
 library(geosphere)
 
-#mean
+#mean was nf = 30
 pca_kruger<-dudi.pca(for_pca_mean[which(df$Region!="NA"),],
                      center = TRUE, scale = FALSE, 
-                     scann = FALSE, nf = 30)
+                     scann = FALSE, nf = 50)
+for(i in 1:38) {
+  eig_vals <- pca_kruger$eig/sum(pca_kruger$eig)
+  print(paste0("iter: ", i," ",sum(eig_vals[1:i])))
+}
+
 PCA_DUDI_mean<-pca_kruger$li
-a_mean <- as.matrix(dist(PCA_DUDI_mean[,1:30], method = "euclidean"))
+a_mean <- as.matrix(dist(PCA_DUDI_mean[,1:20], method = "euclidean"))
 #mode
-pca_kruger<-dudi.pca(for_pca_mode[which(df$Region!="NA"),],
-                     center = TRUE, scale = FALSE, 
-                     scann = FALSE, nf = 30)
-PCA_DUDI_mode<-pca_kruger$li
-a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:30], method = "euclidean"))
+# pca_kruger<-dudi.pca(for_pca_mode[which(df$Region!="NA"),],
+#                      center = TRUE, scale = FALSE, 
+#                      scann = FALSE, nf = 30)
+# PCA_DUDI_mode<-pca_kruger$li
+# a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:30], method = "euclidean"))
 
 #clustered mode
 pca_kruger<-dudi.pca(df_clustered_mode[which(df$Region!="NA"),7:ncol(df_clustered_mode)],
                      center = TRUE, scale = FALSE, 
-                     scann = FALSE, nf = 30)
+                     scann = FALSE, nf = 50)
+for(i in 1:38) {
+  eig_vals <- pca_kruger$eig/sum(pca_kruger$eig)
+  print(paste0("iter: ", i," ",sum(eig_vals[1:i])))
+}
 PCA_DUDI_mode<-pca_kruger$li
-a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:30], method = "euclidean"))
+a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:20], method = "euclidean"))
 
 #Autoencoder
-z <- as.matrix(dist(intermediate_output[which(df$Region!="NA"),], method = "euclidean"))
+# z <- as.matrix(dist(intermediate_output[which(df$Region!="NA"),], method = "euclidean"))
 
 
 #Estimating the euclidean distances between individuals
@@ -60,7 +69,8 @@ lmm_df <- data.frame(y_mean = lower(a_mean),
                      ME = lower(me),
                      z_ME = scale(lower(me), center = FALSE, scale = TRUE),
                      pop = id$pop1,
-                     otherpop = id$pop2)
+                     otherpop = id$pop2) %>% 
+          filter(pop %in% filter_set & otherpop %in% filter_set)
 
 set.seed(1234)
 Cand.models_mean <- list( )
@@ -83,23 +93,23 @@ Cand.models_mode[[3]] <-lmer(formula = y_mode ~ z_GLM + (1 | pop),
 Cand.models_mode[[4]] <-lmer(formula = y_mode ~ z_ME + (1 | pop),
                              REML=FALSE,data = lmm_df)
 
-Cand.models_AE <- list( )
-Cand.models_AE[[1]] <-lmer(formula = y_AE ~ (1 | pop),
-                             REML=FALSE,data = lmm_df)
-Cand.models_AE[[2]] <-lmer(formula = y_AE ~ z_dist + (1 | pop),
-                             REML=FALSE,data = lmm_df)
-Cand.models_AE[[3]] <-lmer(formula = y_AE ~ z_GLM + (1 | pop),
-                             REML=FALSE,data = lmm_df)
-Cand.models_AE[[4]] <-lmer(formula = y_AE ~ z_ME + (1 | pop),
-                             REML=FALSE,data = lmm_df)
-names<-rbind('null','dist','GLM','ME')
+# Cand.models_AE <- list( )
+# Cand.models_AE[[1]] <-lmer(formula = y_AE ~ (1 | pop),
+#                              REML=FALSE,data = lmm_df)
+# Cand.models_AE[[2]] <-lmer(formula = y_AE ~ z_dist + (1 | pop),
+#                              REML=FALSE,data = lmm_df)
+# Cand.models_AE[[3]] <-lmer(formula = y_AE ~ z_GLM + (1 | pop),
+#                              REML=FALSE,data = lmm_df)
+# Cand.models_AE[[4]] <-lmer(formula = y_AE ~ z_ME + (1 | pop),
+#                              REML=FALSE,data = lmm_df)
 
+names<-rbind('null','dist','GLM','ME')
 (AIC<-aictab(Cand.models_mean, sort = TRUE,
             second.ord = FALSE, modnames=names))
 #write.csv(AIC, "./figures/KNP_AIC_set_mean.csv")
 (AIC<-aictab(Cand.models_mode, sort = TRUE,
              second.ord = FALSE, modnames=names))
 #write.csv(AIC, "./figures/KNP_AIC_set_mode.csv")
-(AIC<-aictab(Cand.models_AE, sort = TRUE,
-             second.ord = FALSE, modnames=names))
+# (AIC<-aictab(Cand.models_AE, sort = TRUE,
+#              second.ord = FALSE, modnames=names))
 #write.csv(AIC, "./figures/KNP_AIC_set_AE.csv")

@@ -3,7 +3,14 @@ library(factoextra)
 library(adegenet)
 set.seed(12)
 
-pca<-dudi.pca(for_pca,center = TRUE, scale = FALSE, scann = FALSE, nf = 30) #30 axes
+pca<-dudi.pca(for_pca_mean,
+              center = TRUE, scale = FALSE, 
+              scann = FALSE, nf = 50)
+
+for(i in 1:38) {
+  eig_vals <- pca$eig/sum(pca$eig)
+  print(paste0("iter: ", i," ",sum(eig_vals[1:i])))
+}
 
 evplot <- function(ev)
 {
@@ -27,53 +34,126 @@ evplot <- function(ev)
 }
 evplot(pca$eig)
 
-fviz_eig(pca)
-fviz_pca_ind(pca,
-             #col.ind = "cos2", # Color by the quality of representation
-             #gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             habillage = df$Population,
-             repel = TRUE     # Avoid text overlapping
+pops <- df$Population[filter_set]
+pops <- case_when(
+  pops == "KenyaMpala" ~ "Kenya Mpala", 
+  pops == "AugrabiesNP" ~ "Augrabies NP",
+  pops == "CamdebooNP" ~ "Camdeboo NP",
+  pops == "FarmArea" ~ "Roggeveld",
+  pops == "KarooNP" ~ "Karoo NP",
+  pops == "KrugerNP" ~ "Kruger NP",
+  pops == "NamaquaNP" ~ "Namaqua NP",
+  pops == "TankwaKarooNP" ~ "Tankwa Karoo NP",
+  pops == "UppingtonArea" ~ "Upington area",
+  pops == "Prieaza" ~ "Prieska area",
+  pops == "VictoriaWestArea" ~ "Victoria West area",
+  pops == "SwaziMlawulaGR" ~ "Eswatini Mlawula NR",
 )
-
-fviz_pca_var(pca,
-             col.var = "contrib", # Color by contributions to the PC
-             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             repel = TRUE     # Avoid text overlapping
+library(ggthemes)
+library(viridis)
+library(patchwork)
+library(RColorBrewer)
+getPalette = colorRampPalette(brewer.pal(11, "Spectral"))
+palette=getPalette(12)
+(p1 <- ggplot(pca$li, aes(x = Axis1,y = Axis2)) +
+    geom_hline(yintercept=0)+
+    geom_vline(xintercept=0)+
+    geom_point(size=2, shape=16, aes(colour=pops))+
+    guides(colour=guide_legend(title="Location"))+
+    theme_tufte()+
+    xlim(-25,25)+
+    ylim(-25,25)+
+    xlab("Principal component 1")+
+    ylab("Principal component 2")+
+    #scale_colour_viridis(discrete = TRUE))
+    #scale_colour_brewer(getPalette(12)))
+    scale_colour_manual(values=palette))
+(p2 <- ggplot(pca$li, aes(x = Axis1,y = Axis3)) +
+    geom_hline(yintercept=0)+
+    geom_vline(xintercept=0)+
+    geom_point(size=2, shape=16, aes(colour=pops))+
+    guides(colour=guide_legend(title="Location"))+
+    theme_tufte()+
+    xlim(-25,25)+
+    ylim(-25,25)+
+    xlab("Principal component 1")+
+    ylab("Principal component 3")+
+    #scale_colour_viridis(discrete = TRUE))
+    #scale_colour_brewer(palette = "Spectral"))
+    scale_colour_manual(values=palette))
+(p3 <- ggplot(pca$li, aes(x = Axis2,y = Axis3)) +
+    geom_hline(yintercept=0)+
+    geom_vline(xintercept=0)+
+    geom_point(size=2, shape=16, aes(colour=pops))+
+    guides(colour=guide_legend(title="Location"))+
+    theme_tufte()+
+    xlim(-25,25)+
+    ylim(-25,25)+
+    xlab("Principal component 2")+
+    ylab("Principal component 3")+
+    #scale_colour_viridis(discrete = TRUE))
+    #scale_colour_brewer(palette = "Spectral"))
+    scale_colour_manual(values=palette))
+eig_vals = pca$eig/sum(pca$eig)
+eig_df <- data.frame(
+  eig_num = seq(1:25),
+  eig_vals = eig_vals[1:25]
 )
-
-fviz_pca_biplot(pca, repel = FALSE,
-                col.var = "#2E9FDF", # Variables color
-                col.ind = "#696969",  # Individuals color
-                axes = c(1,2)
-)
-
-
-fviz_pca_biplot(pca, repel = FALSE,
-                col.var = "#2E9FDF", # Variables color
-                col.ind = "#696969",  # Individuals color
-                axes = c(2,3)
-)
-
-fviz_pca_biplot(pca, repel = FALSE,
-                col.var = "#2E9FDF", # Variables color
-                col.ind = "#696969",  # Individuals color
-                axes = c(1,3)
-)
-
-grp <- find.clusters(for_pca, method="kmeans",stat="BIC",n.pca = 30, n.clust = 3, n.iter=1e9,n.start=200, dudi=pca)
+(p4 <- ggplot(eig_df, aes(x = as.factor(eig_num),y = eig_vals)) +
+    geom_bar(stat="identity")+
+    theme_tufte()+
+    ylim(0,0.15)+
+    xlab("PCA Axis")+
+    ylab("Percentage of variance")+
+    theme(axis.text.x=element_blank()))
+p_sigma <- p1 + p2 + p3 + 
+  inset_element(p4, left = 1, bottom = -0.1, right = 2.1, top = 0.2) +
+  plot_layout(guides = 'collect') &
+  theme(legend.position='right', legend.justification = 'top')
+ggsave("./figures/pca.jpg",plot=p_sigma,device = "jpg",
+       width=8, height=5, units="in",dpi=600)
 
 
+(p1 <- ggplot(pca$li, aes(x = Axis1,y = Axis2)) +
+    geom_hline(yintercept=0)+
+    geom_vline(xintercept=0)+
+    geom_point(size=2, shape=16, aes(colour=as.factor(df$CombinedPop[filter_set])))+
+    guides(colour=guide_legend(title="Location"))+
+    theme_tufte()+
+    xlim(-25,25)+
+    ylim(-25,25)+
+    xlab("Principal component 1")+
+    ylab("Principal component 2")+
+    #scale_colour_viridis(discrete = TRUE))
+    scale_colour_brewer(palette = "Spectral"))
 
-par(mfcol=c(3,1))
-s.class(pca$li, fac=grp$grp,xax=1, yax=2,
-        col=transp(funky(15),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-add.scatter.eig(pca$eig[1:30],3,1,2, ratio=.3)
-s.class(pca$li, fac=grp$grp,xax=2, yax=3,
-        col=transp(funky(15),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-add.scatter.eig(pca$eig[1:30],3,2,3, ratio=.3)
-s.class(pca$li, fac=grp$grp,xax=1, yax=3,
-        col=transp(funky(15),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-add.scatter.eig(pca$eig[1:30],3,1,3, ratio=.3)
+(p2 <- ggplot(pca$li, aes(x = Axis1,y = Axis3)) +
+    geom_hline(yintercept=0)+
+    geom_vline(xintercept=0)+
+    geom_point(size=2, shape=16, aes(colour=as.factor(df$CombinedPop[filter_set])))+
+    guides(colour=guide_legend(title="Location"))+
+    theme_tufte()+
+    xlim(-25,25)+
+    ylim(-25,25)+
+    xlab("Principal component 1")+
+    ylab("Principal component 3")+
+    #scale_colour_viridis(discrete = TRUE))
+    scale_colour_brewer(palette = "Spectral"))
+
+(p3 <- ggplot(pca$li, aes(x = Axis2,y = Axis3)) +
+    geom_hline(yintercept=0)+
+    geom_vline(xintercept=0)+
+    geom_point(size=2, shape=16, aes(colour=as.factor(df$CombinedPop[filter_set])))+
+    guides(colour=guide_legend(title="Location"))+
+    theme_tufte()+
+    xlim(-25,25)+
+    ylim(-25,25)+
+    xlab("Principal component 2")+
+    ylab("Principal component 3")+
+    #scale_colour_viridis(discrete = TRUE))
+    scale_colour_brewer(palette = "Spectral"))
+
+
+p_sigma <- p1 + p2 + p3 + inset_element(p4, left = 0.6, bottom = 0.6, right = 1, top = 1) + plot_layout(guides = 'collect')
+ggsave("./figures/pca_structure.jpg",plot=p_sigma,device = "jpg",
+       width=8, height=5, units="in",dpi=600)

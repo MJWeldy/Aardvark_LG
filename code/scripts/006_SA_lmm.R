@@ -5,27 +5,38 @@ library(MuMIn)
 library(ade4)
 library(broom.mixed)
 library(geosphere)
+library(corrplot)
 #mean
 pca_sa<-dudi.pca(for_pca_mean,
                      center = TRUE, scale = FALSE, 
-                     scann = FALSE, nf = 30)
+                     scann = FALSE, nf = 50)
+for(i in 1:38) {
+  eig_vals <- pca_sa$eig/sum(pca_sa$eig)
+  print(paste0("iter: ", i," ",sum(eig_vals[1:i])))
+}
+
 PCA_DUDI_mean<-pca_sa$li
-a_mean <- as.matrix(dist(PCA_DUDI_mean[,1:30], method = "euclidean"))
+a_mean <- as.matrix(dist(PCA_DUDI_mean[,1:25], method = "euclidean"))
 #mode
-pca_sa<-dudi.pca(for_pca_mode,
-                     center = TRUE, scale = FALSE, 
-                     scann = FALSE, nf = 30)
-PCA_DUDI_mode<-pca_sa$li
-a_mode <- as.matrix(dist(PCA_DUDI_mode, method = "euclidean"))
+# pca_sa<-dudi.pca(for_pca_mode,
+#                      center = TRUE, scale = FALSE, 
+#                      scann = FALSE, nf = 30)
+# PCA_DUDI_mode<-pca_sa$li
+# a_mode <- as.matrix(dist(PCA_DUDI_mode, method = "euclidean"))
 #clustered mode
 pca_sa<-dudi.pca(df_clustered_mode[,7:ncol(df_clustered_mode)],
                      center = TRUE, scale = FALSE, 
-                     scann = FALSE, nf = 30)
+                     scann = FALSE, nf = 50)
+for(i in 1:38) {
+  eig_vals <- pca_sa$eig/sum(pca_sa$eig)
+  print(paste0("iter: ", i," ",sum(eig_vals[1:i])))
+}
+
 PCA_DUDI_mode<-pca_sa$li
-a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:30], method = "euclidean"))
+a_mode <- as.matrix(dist(PCA_DUDI_mode[,1:25], method = "euclidean"))
 
 #Autoencoder
-z <- as.matrix(dist(intermediate_output, method = "euclidean"))
+# z <- as.matrix(dist(intermediate_output, method = "euclidean"))
 
 # 
 # for_pca_SA <- for_pca[5:nrow(df),]
@@ -81,14 +92,18 @@ SA_df$delta_Tmax <- delta_cov(SA_Tmax, SA_points, SA_df$ID1, SA_df$ID2)
 SA_df$delta_MAP <- delta_cov(SA_MAP, SA_points, SA_df$ID1, SA_df$ID2)
 
 z_SA_df <- SA_df
-#z_SA_df[,3:ncol(z_SA_df)] <- scale(z_SA_df[,3:ncol(z_SA_df)] ,center = TRUE, scale = TRUE)
 z_SA_df[,4:ncol(z_SA_df)] <- apply(z_SA_df[4:ncol(z_SA_df)], 2,scale, center = FALSE, scale = TRUE)
-library(corrplot)
-M = cor(SA_df[,3:5])
-corrplot(M, method = 'number')
+# z_SA_df <- cbind(lower(a_mean), lower(a_mode), z_SA_df)  %>% 
+#   filter(ID1 %in% filter_set & ID2 %in% filter_set)
 
-M = cor(SA_df[,4:ncol(SA_df)])
+z_SA_df <- z_SA_df  %>%
+  filter(ID1 %in% filter_set & ID2 %in% filter_set)
+
+M = cor(lower(a_mean), lower(a_mode))
+
+M = cor(SA_df[,3:ncol(SA_df)]) #changed to 3: to include distance
 corrplot(M, method = 'number')
+write.csv(M, "./figures/var_corr.csv")
 
 fit_models <- function(genetic_distance, covs, distance, relation, set, return_list){
   SA_df_filter <- cbind(genetic_distance, covs)
@@ -144,9 +159,13 @@ fit_models <- function(genetic_distance, covs, distance, relation, set, return_l
                                 REML=FALSE, data = SA_df_filter)
     Cand_models_SA[[20]] <-lmer(formula = genetic_distance ~ VRM + delta_MAP + (1 | ID1),
                                 REML=FALSE, data = SA_df_filter)
-    Cand_models_SA[[21]] <-lmer(formula = genetic_distance ~ MAP_gaus + delta_elev + (1 | ID1),
+    Cand_models_SA[[21]] <-lmer(formula = genetic_distance ~ MAP_lin + delta_elev + (1 | ID1),
+                               REML=FALSE, data = SA_df_filter)
+    Cand_models_SA[[22]] <-lmer(formula = genetic_distance ~ MAP_lin + delta_Tmax + (1 | ID1),
+                               REML=FALSE, data = SA_df_filter)
+    Cand_models_SA[[23]] <-lmer(formula = genetic_distance ~ MAP_gaus + delta_elev + (1 | ID1),
                                 REML=FALSE, data = SA_df_filter)
-    Cand_models_SA[[22]] <-lmer(formula = genetic_distance ~ MAP_gaus + delta_Tmax + (1 | ID1),
+    Cand_models_SA[[24]] <-lmer(formula = genetic_distance ~ MAP_gaus + delta_Tmax + (1 | ID1),
                                 REML=FALSE, data = SA_df_filter)
     names<-rbind(#Univariates
       'null','dist','delta_elev','delta_Tmax','delta_MAP',
@@ -156,6 +175,7 @@ fit_models <- function(genetic_distance, covs, distance, relation, set, return_l
       'dist + delta_elev','dist + delta_Tmax', #'dist + delta_MAP' #highly correlated
       'DEM_gaus + delta_Tmax','DEM_gaus + delta_MAP',
       'VRM + delta_elev','VRM + delta_Tmax','VRM + delta_MAP',
+      'MAP_lin + delta_elev', 'MAP_lin + delta_Tmax',
       'MAP_gaus + delta_elev', 'MAP_gaus + delta_Tmax'
     )
   }
@@ -169,14 +189,17 @@ fit_models <- function(genetic_distance, covs, distance, relation, set, return_l
   
 }
 set.seed(1234)
+# SA_mean_AIC <- fit_models(z_SA_df[,1], z_SA_df[,3:ncol(z_SA_df)], 0, "greater than", "multivariate", TRUE)
+# SA_mode_AIC <- fit_models(z_SA_df[,2], z_SA_df[,3:ncol(z_SA_df)], 0, "greater than", "multivariate", TRUE)
+
 SA_mean_AIC <- fit_models(lower(a_mean), z_SA_df, 0, "greater than", "multivariate", TRUE)
 SA_mode_AIC <- fit_models(lower(a_mode), z_SA_df, 0, "greater than", "multivariate", TRUE)
-SA_z_AIC <- fit_models(lower(z), z_SA_df, 0, "greater than", "multivariate", TRUE)
+#SA_z_AIC <- fit_models(lower(z), z_SA_df, 0, "greater than", "multivariate", TRUE)
 write.csv(SA_mean_AIC[[1]], "./figures/SA_AIC_set_mean.csv")
 write.csv(SA_mode_AIC[[1]], "./figures/SA_AIC_set_mode.csv")
-write.csv(SA_z_AIC[[1]], "./figures/SA_AIC_set_z.csv")
+#write.csv(SA_z_AIC[[1]], "./figures/SA_AIC_set_z.csv")
 
-models <- c(20, 19, 6, 18, 8, 9, 15, 2)
+models <- c(22, 9, 21, 19, 6, 18, 20, 8, 15, 14, 24, 2)
 betas <- list()
 for(i in 1:length(models)){
   tmp <- tidy(SA_mean_AIC[[2]][[models[i]]],effects="fixed", conf.int=TRUE, conf.method="profile")
@@ -185,7 +208,7 @@ for(i in 1:length(models)){
 all_betas <- do.call("rbind", betas)
 write.csv(all_betas, "./figures/all_betas.csv")
 
-models <- c(9 ,19, 20, 6, 18, 8, 15, 11, 14, 2)
+models <- c(22, 9, 21, 19, 6, 18, 20, 8, 15, 24, 14, 2)
 betas <- list()
 for(i in 1:length(models)){
   tmp <- tidy(SA_mode_AIC[[2]][[models[i]]],effects="fixed", conf.int=TRUE, conf.method="profile")
@@ -194,11 +217,11 @@ for(i in 1:length(models)){
 all_betas <- do.call("rbind", betas)
 write.csv(all_betas, "./figures/all_betas_mode.csv")
 
-models(18, 20, 19, 14, 6, 15, 17, 2)
-betas <- list()
-for(i in 1:length(models)){
-  tmp <- tidy(SA_z_AIC[[2]][[models[i]]],effects="fixed", conf.int=TRUE, conf.method="profile")
-  betas[[i]] <- data.frame(term = tmp$term, mean = tmp$estimate, ci_low = tmp$conf.low, ci_high = tmp$conf.high)
-}
-all_betas <- do.call("rbind", betas)
-write.csv(all_betas, "./figures/all_betas_z.csv")
+# models(18, 20, 19, 14, 6, 15, 17, 2)
+# betas <- list()
+# for(i in 1:length(models)){
+#   tmp <- tidy(SA_z_AIC[[2]][[models[i]]],effects="fixed", conf.int=TRUE, conf.method="profile")
+#   betas[[i]] <- data.frame(term = tmp$term, mean = tmp$estimate, ci_low = tmp$conf.low, ci_high = tmp$conf.high)
+# }
+# all_betas <- do.call("rbind", betas)
+# write.csv(all_betas, "./figures/all_betas_z.csv")
